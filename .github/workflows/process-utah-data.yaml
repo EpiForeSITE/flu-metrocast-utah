@@ -44,6 +44,15 @@ jobs:
             any::readr
             any::lubridate
 
+      # Download latest target data from upstream hub
+      - name: Fetch upstream target data
+        run: |
+          git remote add upstream https://github.com/reichlab/flu-metrocast.git
+          git fetch upstream main
+
+          # Replace local target-data with upstream version
+          git restore --source=upstream/main --worktree -- target-data/
+
       # Run your existing cleaning script
       - name: Process Utah data
         run: Rscript src/UT_clean.R
@@ -67,3 +76,10 @@ jobs:
           stat target-data/latest-data.csv
           stat target-data/time-series.csv
           stat target-data/oracle-output.csv
+
+          echo "Changes relative to upstream:"
+          git diff --stat upstream/main -- target-data/
+          git diff --name-only upstream/main -- target-data/
+
+          echo "Changes relative to automation branch:"
+          git status --short
