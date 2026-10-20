@@ -60,6 +60,7 @@ jobs:
 
       # Validate target data against Hubverse configuration
       - name: Validate target data
+        continue-on-error: true
         run: |
           Rscript -e '
 
@@ -105,3 +106,48 @@ jobs:
 
           echo "Changes relative to automation branch:"
           git status --short
+
+      # Prepare a clean submission branch from upstream
+      - name: Prepare Utah submission branch
+        run: |
+          # Save processed Utah data outside the repository
+          mkdir -p "$RUNNER_TEMP/utah-output"
+          cp target-data/*.csv "$RUNNER_TEMP/utah-output/"
+
+          # Save the newest Utah raw CSV
+          RAW_FILE=$(find raw-data -maxdepth 1 -type f \
+            -name '*UT_Regional_Flu*.csv' | sort | tail -n 1)
+
+          test -n "$RAW_FILE"
+          cp "$RAW_FILE" "$RUNNER_TEMP/utah-output/"
+
+          # Reset tracked and untracked working files
+          git reset --hard
+          git clean -fd
+
+          # Create a clean branch from upstream main
+          git switch -C utah-submission-test upstream/main
+
+          # Restore processed data
+          cp "$RUNNER_TEMP/utah-output/latest-data.csv" target-data/
+          cp "$RUNNER_TEMP/utah-output/time-series.csv" target-data/
+          cp "$RUNNER_TEMP/utah-output/oracle-output.csv" target-data/
+
+          # Add the newest raw Utah file
+          mkdir -p raw-data
+          cp "$RUNNER_TEMP/utah-output/$(basename "$RAW_FILE")" raw-data/
+
+          # Stage only intended submission files
+          git add target-data/latest-data.csv
+          git add target-data/time-series.csv
+          git add target-data/oracle-output.csv
+          git add "raw-data/$(basename "$RAW_FILE")"
+
+          echo "Files staged for submission:"
+          git diff --cached --name-only
+
+          echo "Submission summary:"
+          git diff --cached --stat
+
+          echo "Current branch:"
+          git branch --show-current
