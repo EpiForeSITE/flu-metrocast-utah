@@ -51,5 +51,19 @@ jobs:
       # Show which files were changed
       - name: Review changed files
         run: |
+          echo "Current directory:"
+          pwd
+
+          echo "Target data files:"
+          ls -lh target-data/
+
+          echo "Git status:"
           git status --short
+
+          echo "Git diff:"
           git diff --stat
+
+          echo "Latest file modification times:"
+          stat target-data/latest-data.csv
+          stat target-data/time-series.csv
+          stat target-data/oracle-output.csv
