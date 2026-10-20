@@ -59,6 +59,51 @@ jobs:
       - name: Process Utah data
         run: Rscript src/UT_clean.R
 
+      # Check the newest Utah snapshot for duplicates
+      - name: Check Utah duplicates
+        run: |
+          Rscript -e '
+
+           library(dplyr)
+            library(readr)
+
+            files <- list.files(
+              "raw-data",
+              pattern = "^[0-9]{8}_UT_Regional_Flu.*\\.csv$"
+            )
+
+            stopifnot(length(files) > 0)
+
+            as_of_date <- as.Date(
+              substr(sort(files, decreasing = TRUE)[1], 1, 8),
+              "%Y%m%d"
+            )
+
+            df <- read_csv(
+              "target-data/time-series.csv",
+              show_col_types = FALSE,
+              col_types = cols(as_of = col_date())
+            )
+
+            new_snapshot <- df |>
+              filter(as_of == as_of_date)
+
+            if (nrow(new_snapshot) == 0) {
+              stop("No observations found for the new as_of date")
+            }
+
+            duplicates <- new_snapshot |>
+              count(as_of, location, target, target_end_date) |>
+              filter(n > 1)
+
+            if (nrow(duplicates) > 0) {
+              print(duplicates)
+              stop("Duplicate observation keys found in new snapshot")
+            }
+
+            cat("New snapshot contains no duplicate keys.\n")
+          '
+
       # Validate target data against Hubverse configuration
       - name: Validate target data
         continue-on-error: true
@@ -153,10 +198,28 @@ jobs:
           echo "Current branch:"
           git branch --show-current
 
-      # Test whether GitHub Actions can push to our fork
-      - name: Test GitHub write permissions
+      # Commit and push the processed data to our fork
+      - name: Push Utah submission branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Identify GitHub Actions as the author
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Create a commit if files have changed
+          if git diff --cached --quiet; then
+            echo "No new data changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Update Utah influenza surveillance data"
+
+          # Push to a uniquely named branch in the Utah fork
+          BRANCH="utah-submission-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
           git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
-            push origin HEAD:refs/heads/utah-permission-test
+            push origin "HEAD:refs/heads/$BRANCH"
+
+          echo "Submission branch created: $BRANCH"
+
