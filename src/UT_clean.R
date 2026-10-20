@@ -1,5 +1,7 @@
 
-library(tidyverse)
+library(dplyr)
+library(readr)
+library(lubridate)
 
 # Find all Utah raw data files
 files <- list.files(
@@ -54,12 +56,12 @@ latest_all <- read.csv("./target-data/latest-data.csv")
 
 # Overwrite any rows in latest_all with the same target_end_date and location as in latest
 latest_join <- latest_all |>
-  anti_join(latest, by = c("target_end_date", "location")) |>
+  anti_join(latest, by = c("target_end_date", "location", "target")) |>
   bind_rows(latest)
 
 # Export
 write.csv(latest_join,
-          "C:/Users/u6072429/Box/Github/flu-metrocast-utah/target-data/latest-data.csv",
+          "./target-data/latest-data.csv",
           row.names = FALSE,
           quote = c(2, 3)) # so dates don't get messed up by quotes
 
@@ -74,16 +76,28 @@ as_of_date <- as.Date(
 
 # Select key variables from latest-data
 time_series <- latest |>
-  mutate(as_of = ymd(as_of_date)) |>
+  mutate(as_of = format(as_of_date, "%Y-%m-%d")) |>
   select(as_of, location, target, target_end_date, observation)
 
-# Append data to existing time-series.csv data
-write_csv(
-  time_series,
-  "C:/Users/u6072429/Box/Github/flu-metrocast-utah/target-data/time-series.csv",
-  append = TRUE,
-  col_names = FALSE
+# Read existing time-series data
+time_series_all <- read.csv(
+  "./target-data/time-series.csv"
 )
+
+# Remove existing observations that match the incoming
+# as_of date, location, target, and target_end_date
+time_series_join <- time_series_all |>
+  anti_join(
+    time_series,
+    by = c("as_of", "location", "target", "target_end_date")
+  ) |>
+  bind_rows(time_series)
+
+# Export
+write.csv(time_series_join,
+          "./target-data/time-series.csv",
+          row.names = FALSE,
+          quote = c(2, 3)) # so dates don't get messed up by quotes
 
 
 # Update oracle-output file ----------------------------------------------------
@@ -100,12 +114,12 @@ oracle_UT <- time_series |>
 # Overwrite any rows in latest_all with the same target_end_date and location
 # and append new data
 oracle_join <- oracle |>
-  anti_join(oracle_UT, by = c("target_end_date", "location")) |>
+  anti_join(oracle_UT, by = c("target_end_date", "location", "target")) |>
   bind_rows(oracle_UT)
 
 # Export
 write.csv(oracle_join,
-          "C:/Users/u6072429/Box/Github/flu-metrocast-utah/target-data/oracle-output.csv",
+          "./target-data/oracle-output.csv",
           row.names = FALSE,
           quote = c(2, 3)) # so dates don't get messed up by quotes
 

@@ -7,25 +7,49 @@ on:
       - automation
     paths:
       - 'raw-data/*UT_Regional_Flu*.csv'
+      - 'src/UT_clean.R'
+      - '.github/workflows/process-utah-data.yaml'
 
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: utah-data-processing
+  cancel-in-progress: false
+
 jobs:
   process-data:
+    if: github.repository == 'EpiForeSITE/flu-metrocast-utah'
     runs-on: ubuntu-latest
 
     steps:
+      # Download the automation branch
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Install R
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
 
-      - name: Check R installation
-        run: Rscript -e 'print(R.version.string)'
+      # Install and cache required R packages
+      - name: Install R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::dplyr
+            any::readr
+            any::lubridate
 
-      - name: List raw data files
-        run: ls -l raw-data/
+      # Run your existing cleaning script
+      - name: Process Utah data
+        run: Rscript src/UT_clean.R
+
+      # Show which files were changed
+      - name: Review changed files
+        run: |
+          git status --short
+          git diff --stat
