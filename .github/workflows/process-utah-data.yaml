@@ -43,7 +43,7 @@ jobs:
             any::dplyr
             any::readr
             any::lubridate
-            any::hubValidations
+            github::hubverse-org/hubValidations
 
       # Download latest target data from upstream hub
       - name: Fetch upstream target data
