@@ -43,6 +43,7 @@ jobs:
             any::dplyr
             any::readr
             any::lubridate
+            any::hubValidations
 
       # Download latest target data from upstream hub
       - name: Fetch upstream target data
@@ -56,6 +57,27 @@ jobs:
       # Run your existing cleaning script
       - name: Process Utah data
         run: Rscript src/UT_clean.R
+
+      # Validate target data against Hubverse configuration
+      - name: Validate target data
+        run: |
+          Rscript -e '
+
+            hubValidations::validate_target_submission(
+              hub_path = ".",
+              file_path = "time-series.csv",
+              target_type = "time-series",
+              allow_extra_dates = TRUE
+            ) |>
+              hubValidations::check_for_errors()
+
+            hubValidations::validate_target_submission(
+              hub_path = ".",
+              file_path = "oracle-output.csv",
+              target_type = "oracle-output"
+            ) |>
+              hubValidations::check_for_errors()
+          '
 
       # Show which files were changed
       - name: Review changed files
