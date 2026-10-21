@@ -124,7 +124,7 @@ oracle <- read.csv("./target-data/oracle-output.csv")
 # Format oracle data
 oracle_UT <- time_series |>
   rename(oracle_value = observation) |>
-  filter(target_end_date >= "2026-10-17") |>
+  filter(target_end_date >= "2026-10-24") |>
   select(target_end_date, location, target, oracle_value)
 
 # Overwrite any rows in latest_all with the same target_end_date and location
