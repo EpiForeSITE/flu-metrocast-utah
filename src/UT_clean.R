@@ -39,7 +39,7 @@ latest <- raw |>
       region %in% "utah-state" ~ "utah"),
 
     target = "Flu ED visits pct",
-    time_value = format(mdy(time_value), "%Y-%m-%d")
+    time_value = time_value
     ) |>
 
   rename(observation = value,
@@ -98,6 +98,22 @@ write.csv(time_series_join,
           "./target-data/time-series.csv",
           row.names = FALSE,
           quote = FALSE)
+
+# write.csv(
+#   time_series_join,
+#   "time-series-test.csv",
+#   row.names = FALSE,
+#   quote = FALSE
+# )
+#
+# readLines("time-series-test.csv", n = 5)
+# readLines("./target-data/time-series.csv", n = 5)
+# # Compare original and updated data
+# identical(time_series_all, time_series_join)
+#
+# # Check number of rows
+# nrow(time_series_all)
+# nrow(time_series_join)
 
 
 # Update oracle-output file ----------------------------------------------------
