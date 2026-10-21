@@ -237,7 +237,7 @@ jobs:
       # Open a pull request to the upstream MetroCast hub
       - name: Create upstream pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.METROCAST_PR_TOKEN }}
         run: |
           # Find the latest Utah raw file
           RAW_FILE=$(find raw-data -maxdepth 1 -type f \
@@ -264,6 +264,30 @@ jobs:
             --repo reichlab/flu-metrocast \
             --base main \
             --head "EpiForeSITE:$BRANCH" \
-            --title "Update Utah influenza data - $FILE_DATE" \
-            --body "Automated Utah influenza surveillance data update. Includes raw data and updated target-data files."
+            --title "Update Utah ED visit data - $FILE_DATE" \
+            --body "Automated Utah influenza ED visit data update. Includes raw data and updated target-data files."
 
+
+      # Slack notification when workflow succeeds
+      - name: Slack success notification
+        if: ${{ success() }}
+        uses: slackapi/slack-github-action@v2.1
+        with:
+          webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":white_check_mark: *Utah MetroCast data update succeeded.*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
+            }
+
+      # Slack notification when workflow fails
+      - name: Slack failure notification
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.1
+        with:
+          webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: *Utah MetroCast data update failed.* Please review.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
+            }
