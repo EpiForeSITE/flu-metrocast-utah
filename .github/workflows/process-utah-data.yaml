@@ -230,3 +230,36 @@ jobs:
 
           echo "Submission branch created: $BRANCH"
 
+      # Open a pull request to the upstream MetroCast hub
+      - name: Create upstream pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Find the latest Utah raw file
+          RAW_FILE=$(find raw-data -maxdepth 1 -type f \
+            -name '*UT_Regional_Flu*.csv' | sort | tail -n 1)
+
+          FILE_DATE=$(basename "$RAW_FILE" | cut -c1-8)
+          BRANCH="utah-submission-${FILE_DATE}"
+
+          # Check whether a PR already exists
+          EXISTING_PR=$(gh pr list \
+            --repo reichlab/flu-metrocast \
+            --head "EpiForeSITE:$BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #$EXISTING_PR already exists."
+            exit 0
+          fi
+
+          # Create the upstream PR
+          gh pr create \
+            --repo reichlab/flu-metrocast \
+            --base main \
+            --head "EpiForeSITE:$BRANCH" \
+            --title "Update Utah influenza data - $FILE_DATE" \
+            --body "Automated Utah influenza surveillance data update. Includes raw data and updated target-data files."
+
