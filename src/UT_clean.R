@@ -97,7 +97,7 @@ time_series_join <- time_series_all |>
 write.csv(time_series_join,
           "./target-data/time-series.csv",
           row.names = FALSE,
-          quote = FALSE) # so dates don't get messed up by quotes
+          quote = FALSE)
 
 
 # Update oracle-output file ----------------------------------------------------
