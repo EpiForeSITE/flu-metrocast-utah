@@ -225,8 +225,12 @@ jobs:
           # Create branch name using the date
           BRANCH="utah-submission-${FILE_DATE}"
 
+          # Fetch the existing branch if it exists
+          git fetch origin "$BRANCH" || true
+
+          # Push the updated submission branch
           git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
-            push origin "HEAD:refs/heads/$BRANCH"
+            push --force-with-lease origin "HEAD:refs/heads/$BRANCH"
 
           echo "Submission branch created: $BRANCH"
 
