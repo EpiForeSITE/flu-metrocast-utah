@@ -215,8 +215,15 @@ jobs:
 
           git commit -m "Update Utah influenza surveillance data"
 
-          # Push to a uniquely named branch in the Utah fork
-          BRANCH="utah-submission-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          # Find the latest Utah raw file
+          RAW_FILE=$(find raw-data -maxdepth 1 -type f \
+            -name '*UT_Regional_Flu*.csv' | sort | tail -n 1)
+
+          # Extract the date (first 8 characters)
+          FILE_DATE=$(basename "$RAW_FILE" | cut -c1-8)
+
+          # Create branch name using the date
+          BRANCH="utah-submission-${FILE_DATE}"
 
           git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
             push origin "HEAD:refs/heads/$BRANCH"
