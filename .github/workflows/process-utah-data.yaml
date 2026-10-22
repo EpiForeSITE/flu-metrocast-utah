@@ -198,8 +198,21 @@ jobs:
           echo "Current branch:"
           git branch --show-current
 
+      # Check whether there are any changes to submit
+      - name: Check for data changes
+        id: changes
+        run: |
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data changes detected."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Data changes detected."
+          fi
+
       # Commit and push the processed data to our fork
       - name: Push Utah submission branch
+        if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -236,6 +249,7 @@ jobs:
 
       # Open a pull request to the upstream MetroCast hub
       - name: Create upstream pull request
+        if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.METROCAST_PR_TOKEN }}
         run: |
