@@ -289,26 +289,26 @@ jobs:
             --body "Automated Utah influenza ED visit data update. Includes raw data and updated target-data files."
 
 
-      # # Slack notification when workflow succeeds
-      # - name: Slack success notification
-      #   if: ${{ success() }}
-      #   uses: slackapi/slack-github-action@v2.1
-      #   with:
-      #     webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
-      #     webhook-type: incoming-webhook
-      #     payload: |
-      #       {
-      #         "text": ":white_check_mark: *Utah MetroCast data update succeeded.*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
-      #       }
-      #
-      # # Slack notification when workflow fails
-      # - name: Slack failure notification
-      #   if: ${{ failure() }}
-      #   uses: slackapi/slack-github-action@v2.1
-      #   with:
-      #     webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
-      #     webhook-type: incoming-webhook
-      #     payload: |
-      #       {
-      #         "text": ":x: *Utah MetroCast data update failed.* Please review.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
-      #       }
+      # Slack notification when workflow succeeds
+      - name: Slack success notification
+        if: ${{ success() }}
+        uses: slackapi/slack-github-action@v2.1
+        with:
+          webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":white_check_mark: *Utah MetroCast data update succeeded.*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
+            }
+
+      # Slack notification when workflow fails
+      - name: Slack failure notification
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.1
+        with:
+          webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: *Utah MetroCast data update failed.* Please review.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
+            }
