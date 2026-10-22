@@ -55,6 +55,24 @@ jobs:
           # Replace local target-data with upstream version
           git restore --source=upstream/main --worktree -- target-data/
 
+
+      # Identify the raw file used throughout the workflow
+      - name: Identify Utah raw file
+        run: |
+          RAW_FILE=$(find raw-data -maxdepth 1 -type f \
+            -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_UT_Regional_Flu_Only.csv' \
+            | sort | tail -n 1)
+
+          test -n "$RAW_FILE"
+
+          FILE_DATE=$(basename "$RAW_FILE" | cut -c1-8)
+
+          echo "RAW_FILE=$RAW_FILE" >> "$GITHUB_ENV"
+          echo "FILE_DATE=$FILE_DATE" >> "$GITHUB_ENV"
+
+          echo "Selected file: $RAW_FILE"
+          echo "File date: $FILE_DATE"
+
       # Run your existing cleaning script
       - name: Process Utah data
         run: Rscript src/UT_clean.R
@@ -67,17 +85,12 @@ jobs:
            library(dplyr)
             library(readr)
 
-            files <- list.files(
-              "raw-data",
-              pattern = "^[0-9]{8}_UT_Regional_Flu.*\\.csv$"
-            )
-
-            stopifnot(length(files) > 0)
-
             as_of_date <- as.Date(
-              substr(sort(files, decreasing = TRUE)[1], 1, 8),
-              "%Y%m%d"
+              Sys.getenv("FILE_DATE"),
+              format = "%Y%m%d"
             )
+
+            stopifnot(!is.na(as_of_date))
 
             df <- read_csv(
               "target-data/time-series.csv",
@@ -160,35 +173,32 @@ jobs:
           mkdir -p "$RUNNER_TEMP/utah-output"
           cp target-data/*.csv "$RUNNER_TEMP/utah-output/"
 
-          # Save the newest Utah raw CSV
-          RAW_FILE=$(find raw-data -maxdepth 1 -type f \
-            -name '*UT_Regional_Flu*.csv' | sort | tail -n 1)
-
-          test -n "$RAW_FILE"
+          # Save the selected Utah raw file
           cp "$RAW_FILE" "$RUNNER_TEMP/utah-output/"
 
-          # Reset tracked and untracked working files
+          # Reset temporary working files
           git reset --hard
           git clean -fd
 
           # Create a clean branch from upstream main
           git switch -C utah-submission-test upstream/main
 
-          # Restore processed data
+          # Restore processed target data
           cp "$RUNNER_TEMP/utah-output/latest-data.csv" target-data/
           cp "$RUNNER_TEMP/utah-output/time-series.csv" target-data/
           cp "$RUNNER_TEMP/utah-output/oracle-output.csv" target-data/
 
-          # Add the newest raw Utah file
+          # Restore the selected Utah raw file
           mkdir -p raw-data
           cp "$RUNNER_TEMP/utah-output/$(basename "$RAW_FILE")" raw-data/
 
-          # Stage only intended submission files
+          # Stage only the intended submission files
           git add target-data/latest-data.csv
           git add target-data/time-series.csv
           git add target-data/oracle-output.csv
           git add "raw-data/$(basename "$RAW_FILE")"
 
+          # Display the staged changes
           echo "Files staged for submission:"
           git diff --cached --name-only
 
@@ -228,14 +238,7 @@ jobs:
 
           git commit -m "Update Utah influenza surveillance data"
 
-          # Find the latest Utah raw file
-          RAW_FILE=$(find raw-data -maxdepth 1 -type f \
-            -name '*UT_Regional_Flu*.csv' | sort | tail -n 1)
-
-          # Extract the date (first 8 characters)
-          FILE_DATE=$(basename "$RAW_FILE" | cut -c1-8)
-
-          # Create branch name using the date
+          # Use the date identified before switching branches
           BRANCH="utah-submission-${FILE_DATE}"
 
           # Fetch the existing branch if it exists
@@ -254,10 +257,6 @@ jobs:
           GH_TOKEN: ${{ secrets.METROCAST_PR_TOKEN }}
         run: |
           # Find the latest Utah raw file
-          RAW_FILE=$(find raw-data -maxdepth 1 -type f \
-            -name '*UT_Regional_Flu*.csv' | sort | tail -n 1)
-
-          FILE_DATE=$(basename "$RAW_FILE" | cut -c1-8)
           BRANCH="utah-submission-${FILE_DATE}"
 
           # Check whether a PR already exists
