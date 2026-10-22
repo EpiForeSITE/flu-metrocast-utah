@@ -29,6 +29,8 @@ jobs:
       # Download the automation branch
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # Install R
       - name: Set up R
@@ -241,11 +243,17 @@ jobs:
           # Use the date identified before switching branches
           BRANCH="utah-submission-${FILE_DATE}"
 
-          # Fetch the existing branch if it exists
-          git fetch origin "$BRANCH" || true
+          # Set up authentication using the classic PAT
+          AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
 
-          # Push the updated submission branch
-          git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
+          # Fetch the existing submission branch if present
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            git -c http.extraheader="$AUTH_HEADER" fetch origin \
+              "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+          fi
+
+          # Push using the classic PAT
+          git -c http.extraheader="$AUTH_HEADER" \
             push --force-with-lease origin "HEAD:refs/heads/$BRANCH"
 
           echo "Submission branch created: $BRANCH"
