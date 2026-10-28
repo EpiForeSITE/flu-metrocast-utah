@@ -50,14 +50,28 @@ latest <- raw |>
 # Check
 table(latest$location, useNA = "always")
 
-
 # Read in latest-data.csv from repo
 latest_all <- read.csv("./target-data/latest-data.csv")
 
 # Overwrite any rows in latest_all with the same target_end_date and location as in latest
 latest_join <- latest_all |>
-  anti_join(latest, by = c("target_end_date", "location", "target")) |>
-  bind_rows(latest)
+  rows_update(
+    semi_join(
+      latest,
+      latest_all,
+      by = c("target_end_date", "location", "target")
+    ),
+    by = c("target_end_date", "location", "target")
+  )
+
+# Append only genuinely new observations
+new_rows <- latest |>
+  anti_join(
+    latest_all,
+    by = c("target_end_date", "location", "target")
+  )
+
+latest_join <- bind_rows(latest_join, new_rows)
 
 # Check whether non-Utah observations are preserved
 non_utah_before <- latest_all |>
@@ -137,8 +151,23 @@ oracle_UT <- time_series |>
 # Overwrite any rows in latest_all with the same target_end_date and location
 # and append new data
 oracle_join <- oracle |>
-  anti_join(oracle_UT, by = c("target_end_date", "location", "target")) |>
-  bind_rows(oracle_UT)
+  rows_update(
+    semi_join(
+      oracle_UT,
+      oracle,
+      by = c("target_end_date", "location", "target")
+    ),
+    by = c("target_end_date", "location", "target")
+  )
+
+# Append only genuinely new observations
+new_rows <- oracle_UT |>
+  anti_join(
+    oracle,
+    by = c("target_end_date", "location", "target")
+  )
+
+oracle_join = bind_rows(oracle_join, new_rows)
 
 # Export
 write.csv(oracle_join,
