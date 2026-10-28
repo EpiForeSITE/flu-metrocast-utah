@@ -91,7 +91,7 @@ jobs:
 
        - name: Diagnose other partners' data
          run: |
-          Rscript -e '
+           Rscript -e '
             library(dplyr)
             library(readr)
 
