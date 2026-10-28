@@ -246,13 +246,21 @@ jobs:
           # Set up authentication using the classic PAT
           AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
 
-          # Fetch the existing submission branch if present
-          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+          # Check whether the submission branch already exists
+          if git -c http.extraheader="$AUTH_HEADER" \
+            ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+
+            echo "Existing submission branch found. Updating it."
+
+            # Fetch the existing branch
             git -c http.extraheader="$AUTH_HEADER" fetch origin \
               "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+
+          else
+            echo "Creating new submission branch."
           fi
 
-          # Push using the classic PAT
+          # Push the latest processed data
           git -c http.extraheader="$AUTH_HEADER" \
             push --force-with-lease origin "HEAD:refs/heads/$BRANCH"
 
