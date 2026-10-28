@@ -267,7 +267,7 @@ jobs:
           echo "Submission branch created: $BRANCH"
 
       # Open a pull request to the upstream MetroCast hub
-      # Open a PR only if one does not already exist
+      # Create PR only if one does not already exist
       - name: Create upstream pull request
         if: steps.changes.outputs.changed == 'true'
         env:
@@ -275,27 +275,25 @@ jobs:
         run: |
           BRANCH="utah-submission-${FILE_DATE}"
 
-          # Check for an existing PR (open or closed)
-          EXISTING_PR=$(gh pr list \
-            --repo reichlab/flu-metrocast \
-            --head "EpiForeSITE:$BRANCH" \
-            --state all \
-            --json number \
+          # Check for an existing PR using GitHub's API
+          EXISTING_PR=$(gh api \
+            "repos/reichlab/flu-metrocast/pulls?state=all&head=EpiForeSITE:$BRANCH&base=main" \
             --jq '.[0].number // empty')
 
           if [ -n "$EXISTING_PR" ]; then
             echo "PR #$EXISTING_PR already exists."
-            echo "Submission branch has been updated."
+            echo "Submission branch updated successfully."
             exit 0
           fi
 
-          # Create a new PR only when none exists
-          gh pr create \
-            --repo reichlab/flu-metrocast \
-            --base main \
-            --head "EpiForeSITE:$BRANCH" \
-            --title "Update Utah ED visit data - $FILE_DATE" \
-            --body "Automated Utah influenza ED visit data update."
+          # Create a new PR only if none exists
+          gh api \
+            --method POST \
+            repos/reichlab/flu-metrocast/pulls \
+            -f title="Update Utah ED visit data - $FILE_DATE" \
+            -f head="EpiForeSITE:$BRANCH" \
+            -f base="main" \
+            -f body="Automated Utah influenza ED visit data update."
 
       # Slack notification when workflow succeeds
       - name: Slack success notification
