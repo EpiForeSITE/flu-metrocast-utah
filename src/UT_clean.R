@@ -40,7 +40,7 @@ latest <- raw |>
 
     target = "Flu ED visits pct",
     time_value = time_value
-    ) |>
+  ) |>
 
   rename(observation = value,
          target_end_date = time_value) |>
@@ -90,44 +90,38 @@ time_series <- latest |>
 
 # Read existing time-series data
 time_series_all <- read.csv(
-  "./target-data/time-series.csv"
+  "./target-data/time-series.csv",
+  colClasses = "character"
 )
 
-# Remove existing observations that match the incoming
-# as_of date, location, target, and target_end_date
-time_series_join <- time_series_all |>
+# Identify observations that are not already present
+new_rows <- time_series |>
+  mutate(across(everything(), as.character)) |>
   anti_join(
-    time_series,
+    time_series_all,
     by = c("as_of", "location", "target", "target_end_date")
-  ) |>
-  bind_rows(time_series)
+  )
 
-# Export
-write.csv(time_series_join,
-          "./target-data/time-series.csv",
-          sep = ",",
-          row.names = FALSE,
-          col.names = TRUE,
-          quote = FALSE,
-          eol = "\n",
-          na = "")
+# Append only new observations
+if (nrow(new_rows) > 0) {
 
-# write.csv(
-#   time_series_join,
-#   "time-series-test.csv",
-#   row.names = FALSE,
-#   quote = FALSE
-# )
-#
-# readLines("time-series-test.csv", n = 5)
-# readLines("./target-data/time-series.csv", n = 5)
-# # Compare original and updated data
-# identical(time_series_all, time_series_join)
-#
-# # Check number of rows
-# nrow(time_series_all)
-# nrow(time_series_join)
+  write.table(
+    new_rows,
+    "./target-data/time-series.csv",
+    sep = ",",
+    row.names = FALSE,
+    col.names = FALSE,
+    quote = FALSE,
+    append = TRUE
+  )
 
+  message(nrow(new_rows), " new observations appended.")
+
+} else {
+
+  message("No new observations to append.")
+
+}
 
 # Update oracle-output file ----------------------------------------------------
 
@@ -151,4 +145,3 @@ write.csv(oracle_join,
           "./target-data/oracle-output.csv",
           row.names = FALSE,
           quote = c(2, 3)) # so dates don't get messed up by quotes
-

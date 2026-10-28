@@ -57,16 +57,10 @@ jobs:
           echo "Upstream commit:"
           git rev-parse upstream/main
 
-          echo "NC October 24 rows in upstream:"
-          git show upstream/main:target-data/latest-data.csv |
-            grep '^2026-10-24,"clt-area"' || true
-
           git restore --source=upstream/main --worktree -- target-data/
 
           # Preserve original upstream data for comparison
           cp target-data/latest-data.csv "$RUNNER_TEMP/latest-data-upstream.csv"
-          cp target-data/time-series.csv "$RUNNER_TEMP/time-series-upstream.csv"
-
 
       # Identify the raw file used throughout the workflow
       - name: Identify Utah raw file
@@ -89,7 +83,8 @@ jobs:
       - name: Process Utah data
         run: Rscript src/UT_clean.R
 
-      - name: Diagnose other partners' data
+      # Ensure non-Utah observations are unchanged
+      - name: Verify other partners' data
         run: |
           Rscript -e '
             library(dplyr)
@@ -114,29 +109,14 @@ jobs:
             )
 
             before <- original |>
-              filter(!location %in% utah_locations)
+              filter(!location %in% utah_locations) |>
+              arrange(across(everything()))
 
             after <- updated |>
-              filter(!location %in% utah_locations)
+              filter(!location %in% utah_locations) |>
+              arrange(across(everything()))
 
-            cat("Original non-Utah rows:", nrow(before), "\n")
-            cat("Updated non-Utah rows:", nrow(after), "\n")
-
-            cat("\nRows missing from updated file:\n")
-            print(
-              anti_join(before, after, by = names(before)),
-              n = 30
-            )
-
-            cat("\nRows added to updated file:\n")
-            print(
-              anti_join(after, before, by = names(before)),
-              n = 30
-            )
-
-            if (!setequal(before, after)) {
-              stop("Non-Utah observations differ from upstream.")
-            }
+            stopifnot(identical(before, after))
 
             cat("Non-Utah observations preserved.\n")
           '
@@ -206,29 +186,9 @@ jobs:
       # Show which files were changed
       - name: Review changed files
         run: |
-          echo "Current directory:"
-          pwd
-
-          echo "Target data files:"
-          ls -lh target-data/
-
-          echo "Git status:"
-          git status --short
-
-          echo "Git diff:"
-          git diff --stat
-
-          echo "Latest file modification times:"
-          stat target-data/latest-data.csv
-          stat target-data/time-series.csv
-          stat target-data/oracle-output.csv
-
           echo "Changes relative to upstream:"
           git diff --stat upstream/main -- target-data/
           git diff --name-only upstream/main -- target-data/
-
-          echo "Changes relative to automation branch:"
-          git status --short
 
       # Prepare a clean submission branch from upstream
       - name: Prepare Utah submission branch
@@ -302,16 +262,6 @@ jobs:
 
           git commit -m "Update Utah influenza surveillance data"
 
-          # Check which upstream commit the submission uses
-          echo "Submission branch parent:"
-          git rev-parse HEAD^
-
-          echo "Latest upstream commit:"
-          git rev-parse upstream/main
-
-          echo "Common ancestor:"
-          git merge-base HEAD upstream/main
-
           # Use the date identified before switching branches
           BRANCH="utah-submission-${FILE_DATE}"
 
@@ -369,7 +319,7 @@ jobs:
 
       # Slack notification when workflow succeeds
       - name: Slack success notification
-        if: ${{ success() }}
+        if: ${{ success() && steps.changes.outputs.changed == 'true' }}
         uses: slackapi/slack-github-action@v2.1
         with:
           webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
@@ -378,15 +328,27 @@ jobs:
             {
               "text": ":white_check_mark: *Utah MetroCast data update succeeded.*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
             }
-#
-#       # Slack notification when workflow fails
-#       - name: Slack failure notification
-#         if: ${{ failure() }}
-#         uses: slackapi/slack-github-action@v2.1
-#         with:
-#           webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
-#           webhook-type: incoming-webhook
-#           payload: |
-#             {
-#               "text": ":x: *Utah MetroCast data update failed.* Please review.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
-#             }
+
+      # Notify Slack when no changes were necessary
+      - name: Slack no changes notification
+        if: ${{ success() && steps.changes.outputs.changed == 'false' }}
+        uses: slackapi/slack-github-action@v2.1
+        with:
+          webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":information_source: *Utah MetroCast update checked.*\nNo new data changes detected. No pull request needed.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+            }
+
+      # Slack notification when workflow fails
+      - name: Slack failure notification
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.1
+        with:
+          webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: *Utah MetroCast data update failed.* Please review.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
+            }
