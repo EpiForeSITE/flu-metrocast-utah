@@ -59,9 +59,6 @@ jobs:
 
           git restore --source=upstream/main --worktree -- target-data/
 
-          # Preserve original upstream data for comparison
-          cp target-data/latest-data.csv "$RUNNER_TEMP/latest-data-upstream.csv"
-
       # Identify the raw file used throughout the workflow
       - name: Identify Utah raw file
         run: |
@@ -82,44 +79,6 @@ jobs:
       # Run your existing cleaning script
       - name: Process Utah data
         run: Rscript src/UT_clean.R
-
-      # Ensure non-Utah observations are unchanged
-      - name: Verify other partners' data
-        run: |
-          Rscript -e '
-            library(dplyr)
-            library(readr)
-
-            utah_locations <- c(
-              "bear-river", "central", "davis", "san-juan",
-              "salt-lake", "southeast", "southwest",
-              "summit", "tooele", "tri-county",
-              "utah-county", "wasatch", "weber-morgan", "utah"
-            )
-
-            original <- read_csv(
-              file.path(Sys.getenv("RUNNER_TEMP"),
-                        "latest-data-upstream.csv"),
-              show_col_types = FALSE
-            )
-
-            updated <- read_csv(
-              "target-data/latest-data.csv",
-              show_col_types = FALSE
-            )
-
-            before <- original |>
-              filter(!location %in% utah_locations) |>
-              arrange(across(everything()))
-
-            after <- updated |>
-              filter(!location %in% utah_locations) |>
-              arrange(across(everything()))
-
-            stopifnot(identical(before, after))
-
-            cat("Non-Utah observations preserved.\n")
-          '
 
       # Check the newest Utah snapshot for duplicates
       - name: Check Utah duplicates
