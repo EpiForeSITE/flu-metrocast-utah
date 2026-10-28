@@ -302,6 +302,16 @@ jobs:
 
           git commit -m "Update Utah influenza surveillance data"
 
+          # Check which upstream commit the submission uses
+          echo "Submission branch parent:"
+          git rev-parse HEAD^
+
+          echo "Latest upstream commit:"
+          git rev-parse upstream/main
+
+          echo "Common ancestor:"
+          git merge-base HEAD upstream/main
+
           # Use the date identified before switching branches
           BRANCH="utah-submission-${FILE_DATE}"
 
