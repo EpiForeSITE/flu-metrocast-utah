@@ -54,8 +54,18 @@ jobs:
           git remote add upstream https://github.com/reichlab/flu-metrocast.git
           git fetch upstream main
 
-          # Replace local target-data with upstream version
+          echo "Upstream commit:"
+          git rev-parse upstream/main
+
+          echo "NC October 24 rows in upstream:"
+          git show upstream/main:target-data/latest-data.csv |
+            grep '^2026-10-24,"clt-area"' || true
+
           git restore --source=upstream/main --worktree -- target-data/
+
+          # Preserve original upstream data for comparison
+          cp target-data/latest-data.csv "$RUNNER_TEMP/latest-data-upstream.csv"
+          cp target-data/time-series.csv "$RUNNER_TEMP/time-series-upstream.csv"
 
 
       # Identify the raw file used throughout the workflow
@@ -78,6 +88,47 @@ jobs:
       # Run your existing cleaning script
       - name: Process Utah data
         run: Rscript src/UT_clean.R
+
+      - name: Verify other partners' data
+        run: |
+          Rscript -e '
+            library(dplyr)
+            library(readr)
+
+            utah_locations <- c(
+              "bear-river", "central", "davis", "san-juan",
+              "salt-lake", "southeast", "southwest",
+              "summit", "tooele", "tri-county",
+              "utah-county", "wasatch", "weber-morgan", "utah"
+            )
+
+            for (filename in c("latest-data.csv", "time-series.csv")) {
+              original <- read_csv(
+                file.path(Sys.getenv("RUNNER_TEMP"),
+                          sub(".csv$", "-upstream.csv", filename)),
+                show_col_types = FALSE
+              )
+
+              updated <- read_csv(
+                file.path("target-data", filename),
+                show_col_types = FALSE
+              )
+
+              before <- original |>
+                filter(!location %in% utah_locations) |>
+                arrange(across(everything()))
+
+              after <- updated |>
+                filter(!location %in% utah_locations) |>
+                arrange(across(everything()))
+
+              if (!identical(before, after)) {
+                stop(paste("Non-Utah data changed in", filename))
+              }
+
+              cat("Non-Utah data preserved in", filename, "\n")
+            }
+          '
 
       # Check the newest Utah snapshot for duplicates
       - name: Check Utah duplicates
