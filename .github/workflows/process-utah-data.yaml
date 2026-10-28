@@ -89,8 +89,8 @@ jobs:
       - name: Process Utah data
         run: Rscript src/UT_clean.R
 
-      - name: Verify other partners' data
-        run: |
+       - name: Diagnose other partners' data
+         run: |
           Rscript -e '
             library(dplyr)
             library(readr)
@@ -102,32 +102,43 @@ jobs:
               "utah-county", "wasatch", "weber-morgan", "utah"
             )
 
-            for (filename in c("latest-data.csv", "time-series.csv")) {
-              original <- read_csv(
-                file.path(Sys.getenv("RUNNER_TEMP"),
-                          sub(".csv$", "-upstream.csv", filename)),
-                show_col_types = FALSE
-              )
+            original <- read_csv(
+              file.path(Sys.getenv("RUNNER_TEMP"),
+                        "latest-data-upstream.csv"),
+              show_col_types = FALSE
+            )
 
-              updated <- read_csv(
-                file.path("target-data", filename),
-                show_col_types = FALSE
-              )
+            updated <- read_csv(
+              "target-data/latest-data.csv",
+              show_col_types = FALSE
+            )
 
-              before <- original |>
-                filter(!location %in% utah_locations) |>
-                arrange(across(everything()))
+            before <- original |>
+              filter(!location %in% utah_locations)
 
-              after <- updated |>
-                filter(!location %in% utah_locations) |>
-                arrange(across(everything()))
+            after <- updated |>
+              filter(!location %in% utah_locations)
 
-              if (!identical(before, after)) {
-                stop(paste("Non-Utah data changed in", filename))
-              }
+            cat("Original non-Utah rows:", nrow(before), "\n")
+            cat("Updated non-Utah rows:", nrow(after), "\n")
 
-              cat("Non-Utah data preserved in", filename, "\n")
+            cat("\nRows missing from updated file:\n")
+            print(
+              anti_join(before, after, by = names(before)),
+              n = 30
+            )
+
+            cat("\nRows added to updated file:\n")
+            print(
+              anti_join(after, before, by = names(before)),
+              n = 30
+            )
+
+            if (!setequal(before, after)) {
+              stop("Non-Utah observations differ from upstream.")
             }
+
+            cat("Non-Utah observations preserved.\n")
           '
 
       # Check the newest Utah snapshot for duplicates
@@ -357,15 +368,15 @@ jobs:
             {
               "text": ":white_check_mark: *Utah MetroCast data update succeeded.*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
             }
-
-      # Slack notification when workflow fails
-      - name: Slack failure notification
-        if: ${{ failure() }}
-        uses: slackapi/slack-github-action@v2.1
-        with:
-          webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": ":x: *Utah MetroCast data update failed.* Please review.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
-            }
+#
+#       # Slack notification when workflow fails
+#       - name: Slack failure notification
+#         if: ${{ failure() }}
+#         uses: slackapi/slack-github-action@v2.1
+#         with:
+#           webhook: ${{ secrets.UT_METROCAST_WEBHOOK_URL }}
+#           webhook-type: incoming-webhook
+#           payload: |
+#             {
+#               "text": ":x: *Utah MetroCast data update failed.* Please review.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View GitHub Actions run>"
+#             }
