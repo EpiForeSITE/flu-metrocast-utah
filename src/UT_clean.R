@@ -59,6 +59,15 @@ latest_join <- latest_all |>
   anti_join(latest, by = c("target_end_date", "location", "target")) |>
   bind_rows(latest)
 
+# Check whether non-Utah observations are preserved
+non_utah_before <- latest_all |>
+  filter(!location %in% unique(latest$location))
+
+non_utah_after <- latest_join |>
+  filter(!location %in% unique(latest$location))
+
+stopifnot(identical(non_utah_before, non_utah_after))
+
 # Export
 write.csv(latest_join,
           "./target-data/latest-data.csv",
@@ -96,8 +105,12 @@ time_series_join <- time_series_all |>
 # Export
 write.csv(time_series_join,
           "./target-data/time-series.csv",
+          sep = ",",
           row.names = FALSE,
-          quote = FALSE)
+          col.names = TRUE,
+          quote = FALSE,
+          eol = "\n",
+          na = "")
 
 # write.csv(
 #   time_series_join,
