@@ -89,9 +89,9 @@ jobs:
       - name: Process Utah data
         run: Rscript src/UT_clean.R
 
-       - name: Diagnose other partners' data
-         run: |
-           Rscript -e '
+      - name: Diagnose other partners' data
+        run: |
+          Rscript -e '
             library(dplyr)
             library(readr)
 
